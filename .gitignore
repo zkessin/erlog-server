@@ -1,6 +1,8 @@
 .eunit
+.qc
 deps
 *.o
 *.beam
 *.plt
 erl_crash.dump
+ebin
