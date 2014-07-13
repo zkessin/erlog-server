@@ -37,3 +37,8 @@ path(Erlog, A,B) ->
 
 If you ask for a return type of `boolean` then it will simply return
 true if the predicate succeded and false if it failed.
+
+Note that as of now this does not work yet! I am working on it. 
+
+There is also a plan for a rebar plugin
+
