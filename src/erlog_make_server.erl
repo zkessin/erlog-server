@@ -42,8 +42,8 @@
 compile_file(File,Module) when is_atom(Module)->
     PL@                   = erlog:new(),
     {ok,PL@}             = PL@({consult, File}),
+    {ok, PL@}	         = PL@({consult, "src/erlog_make_server.pl"}),
     {Exports,PL@}        = find_exports(PL@),
-    ?debugVal(Exports),
     {ok, AST@}           = load_base_ast(),
     {ok, AST@}           = replace_filename(AST@, File),
     {ok, AST@}           = replace_module_name(AST@, Module),
@@ -51,7 +51,7 @@ compile_file(File,Module) when is_atom(Module)->
     {ok, AST@}           = load_db_state(AST@, PL@),
     {ok, AST@}           = make_interface_functions(AST@, Exports),
     {ok, AST@}           = add_exports(AST@, Exports),
-    {ok, AST@}           = make_handler_clauses(AST@,Exports),
+    {ok, AST@}           = make_handler_clauses(AST@,Exports,PL@),
     case compile:forms(AST@, [from_ast,debug_info,return]) of
         {ok, Module, Binary,Errors} ->
             file:write_file("errors", io_lib:format("% -*- Erlang -*- ~n~n~p~n",[Errors])),
@@ -124,7 +124,6 @@ make_supervisor_childspec(AST,PLModule) ->
 
 find_exports(PL) ->
     PL@ = PL,
-    {ok, PL@}	= PL@({consult, "src/erlog_make_server.pl"}),
     case PL@({prove, {find_exports, {'Exports'}}}) of 
 	{{succeed, Res},PL@} ->
 	    Exports = [{Fun, Arity } || {'/', Fun,Arity} <- proplists:get_value('Exports', Res)],
@@ -143,8 +142,8 @@ load_db_state(AST, E0) ->
                               [{clause,26,[],[],[{tuple,27,[{atom,27,ok},AbstractDB]}]}]}),
     {ok, AST1}. 
 
-make_handler_clauses(AST, Exports) ->
-    NewClauses = [base_fn_clause(Predicate,Arity) ||{Predicate, Arity} <- Exports],
+make_handler_clauses(AST, Exports,PL) ->
+    NewClauses = [base_fn_clause(Predicate, Arity, PL) ||{Predicate, Arity} <- Exports],
     AST1       = lists:keyreplace(handle_call,3, AST,
                                   {function, 39, handle_call, 3,
                                    NewClauses}),
@@ -192,8 +191,20 @@ make_param_list(ParamCount,Line) when is_integer(ParamCount)->
     PAtomList = [list_to_atom([P]) ||P <-PList],
     [{var, Line, PAtom}|| PAtom <- PAtomList].
 
-base_fn_clause(Predicate, ParamCount ) when is_atom(Predicate) andalso is_integer(ParamCount) ->
-    ParamList = [{atom,46,Predicate}] ++ make_param_list( ParamCount - 1,46),
+
+get_return_value(Function, PL) ->
+    {{succeed, [{'RetVal', RetVal}]},_}= PL({prove, {find_return, Function, {'RetVal'}}}),
+    RetVal.
+
+     
+base_fn_clause(Predicate, ParamCount,PL ) when is_atom(Predicate) andalso is_integer(ParamCount) ->
+    RetVal = get_return_value({'/',Predicate,ParamCount},PL),
+    
+    ParamList = [{atom,46,Predicate}] ++ case RetVal of 
+					     boolean -> make_param_list( ParamCount,46);
+					     _ -> make_param_list(ParamCount -1, 46)++ [{tuple,47,[{atom,47,'X'}]}]
+					 end,
+							
     {clause,46,
      [{match,46,
        {var,46,'_Prove'},
@@ -211,12 +222,13 @@ base_fn_clause(Predicate, ParamCount ) when is_atom(Predicate) andalso is_intege
             [{tuple,47,
               [{atom,47,prove},
                {tuple,47,
-                ParamList ++ [{tuple,47,[{atom,47,'X'}]
-                              }]}]}]},
-           [{clause,48,
-             [{tuple,48,
-               [{tuple,48,
-                 [{atom,48,succeed},
+                ParamList
+	       }]}]},
+
+     [{clause,48,
+       [{tuple,48,
+	 [{tuple,48,
+	   [{atom,48,succeed},
                   {cons,48,
                    {tuple,48,
                     [{atom,48,'X'},{var,48,'RetVal'}]},
