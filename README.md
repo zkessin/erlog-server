@@ -10,7 +10,7 @@ Pull Requests welcome!
 This is designed so that you can create a prolog module .pl and
 compile it down to a beam file which will run as a gen_server. 
 
-In your prolog file you should tell it which functiors to export by
+In your prolog file you should tell it which functors to export by
 using the `erl_export/3` predicate, where the first item is the
 functor to return, the second is the atom `return` and the final is
 either the name of the parameter to return or boolean. (the examples
@@ -25,7 +25,7 @@ path(A,B,Path) :-
 
 ````
 
-This will create a module that has the erlang function that takes the
+This will create a module that has the Erlang function that takes the
 PID of the server and the other parameters and returns the return
 value specified in prolog.
 
@@ -36,9 +36,13 @@ path(Erlog, A,B) ->
 ````
 
 If you ask for a return type of `boolean` then it will simply return
-true if the predicate succeded and false if it failed.
+true if the predicate succeed and false if it failed.
 
 Note that as of now this does not work yet! I am working on it. 
 
 There is also a plan for a rebar plugin
 
+If you want to have your erlog server running from a supervisor, then
+the generated module will include a function
+`make_supervisor_childspec` which will generate a basic child_spec
+that will enable you to hook it up to a supervision tree.
