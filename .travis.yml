@@ -9,8 +9,8 @@ install:
   - export ERL_LIBS=eqcmini
 
 script:
-  - rebar get-deps
-  - make compile 
+  - rebar --config=rebar-devel.config get-deps
+  - rebar --config=rebar-devel.config compile 
   - |
      if [ $TRAVIS_OTP_RELEASE == 17.0 ] 
         then
@@ -18,7 +18,7 @@ script:
         else 
          true
      fi
-  - make qc
+  - make --config=rebar-devel.config compile 
 
 
 otp_release:
