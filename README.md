@@ -18,10 +18,12 @@ are taken from the _po_sets.pl_ file in the priv directory.
 
 
 ````prolog
-erl_export(path/3, return, 'Path').
+erl_export(path/3, return, last).
 path(A,B,Path) :-
        travel(A,B,[A],Q), 
        reverse(Q,Path).
+	   
+
 
 ````
 
@@ -34,9 +36,14 @@ path(Erlog, A,B) ->
 	Path.
 	
 ````
+````prolog
+erl_export(add_edge/2, return, none).
+add_edge(A,B) :-
+	...
+````
 
-If you ask for a return type of `boolean` then it will simply return
-true if the predicate succeed and false if it failed.
+If you ask for a return type of `none` then it will simply return
+ok if the predicate succeed and crash if it failed.
 
 Note that as of now this does not work yet! I am working on it. 
 
