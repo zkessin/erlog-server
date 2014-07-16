@@ -13,8 +13,9 @@ compile it down to a beam file which will run as a gen_server.
 In your prolog file you should tell it which functors to export by
 using the `erl_export/3` predicate, where the first item is the
 functor to return, the second is the atom `return` and the final is
-either the name of the parameter to return or boolean. (the examples
-are taken from the _po_sets.pl_ file in the priv directory.
+either `last` or `none` Last will return the last parameter, none will
+just return `ok`. (the examples are taken from the _po_sets.pl_ file
+in the priv directory.
 
 
 ````prolog
@@ -34,13 +35,19 @@ value specified in prolog.
 ````erlang
 path(Erlog, A,B) ->
 	Path.
-	
 ````
+
 ````prolog
 erl_export(add_edge/2, return, none).
 add_edge(A,B) :-
 	...
 ````
+````erlang
+add_edge(Erlog, A, B) ->
+    %code here
+	ok.
+````
+
 
 If you ask for a return type of `none` then it will simply return
 ok if the predicate succeed and crash if it failed.
