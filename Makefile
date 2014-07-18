@@ -82,8 +82,8 @@ eunit: compile
 	$(REBAR)  eunit skip_deps=true
 
 
-qc: compile 
-	$(REBAR) qc 
+qc: 
+	$(REBAR) qc skip_deps=true 
 
 
 
@@ -114,7 +114,7 @@ $(DEPS_PLT):
 	@echo Building local plt at $(DEPS_PLT)
 	@echo
 	dialyzer --output_plt $(DEPS_PLT) --build_plt \
-	   --apps $(DEPS) 
+	   --apps $(DEPS) deps/*/ebin compiler eunit
 
 dialyzer: $(DEPS_PLT)
 	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions -Wno_improper_lists -Wno_match -r ./ebin

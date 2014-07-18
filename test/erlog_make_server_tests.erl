@@ -158,7 +158,7 @@ prop_add_prolog_export_clauses() ->
                             PL@             = erlog:new(),
                             PL@             = add_export_clauses(Clauses, PL@),
                             {Exports,_PL3}  = erlog_make_server:find_exports(PL@),
-                            {ok, AST1}   = erlog_make_server:add_exports(AST,Exports),
+                            {ok, AST1}   = erlog_make_server:add_exports(AST,Exports,PL@),
                             ?assertEqual(length(AST1), length(AST)),
                             NewExports = exports(AST1),
                             ?assertEqual(NewExports, BaseExports++Exports),
@@ -231,6 +231,8 @@ assert_functions() ->
     ?assert(lists:member({handle_info, 2},               Functions)),
     ?assert(lists:member({handle_prolog, 3},             Functions)),
     ?assert(lists:member({path, 3},                      Functions)),
+    ?assert(lists:member({add_edge, 3},                  Functions)),
+    ?assert(lists:member({sib, 3},                       Functions)),
     true.
 
 prop_compile_file() ->
@@ -248,7 +250,9 @@ prop_execute_code() ->
     ?assert(is_process_alive(Pid)),
     Path   = po_set:path(Pid,a,f),
     ?assertEqual([a,b,f], Path),
-    ok = po_set:add_edge(Pid,f,z),
+    ?assertNot(po_set:sib(Pid,a,b)),
+    ?assert(po_set:sib(Pid,c,b)),
+    ?assert(po_set:add_edge(Pid,f,z)),
     Path2   = po_set:path(Pid,a,z),
     ?assertEqual([a,b,f,z], Path2),
     true.

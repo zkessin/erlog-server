@@ -23,8 +23,6 @@ erl_export(path/3, return, last).
 path(A,B,Path) :-
        travel(A,B,[A],Q), 
        reverse(Q,Path).
-	   
-
 
 ````
 

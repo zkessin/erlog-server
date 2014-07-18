@@ -2,8 +2,6 @@
              [{description,[]},
               {vsn,"1"},
               {registered,[]},
-              {applications,[kernel,stdlib]},
-              {mod,{erlog_server_app,[]}},
+              {applications,[kernel,stdlib,erlog]},
               {env,[]},
-              {modules,[erlog_make_server,erlog_server_app,
-                        erlog_server_sup]}]}.
+              {modules,[erlog_make_server]}]}.

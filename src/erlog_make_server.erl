@@ -40,17 +40,17 @@
  %   file:write_file("test2.ast", io_lib:format("% -*-Erlang -*- ~n~n~p~n",[AST@])),
 
  compile_file(File,Module) when is_atom(Module)->
-     PL@                   = erlog:new(),
+     PL@                  = erlog:new(),
      {ok,PL@}             = PL@({consult, File}),
-     {ok, PL@}	         = PL@({consult, "src/erlog_make_server.pl"}),
+     {ok, PL@}	          = PL@({consult, "src/erlog_make_server.pl"}),
      {Exports,PL@}        = find_exports(PL@),
      {ok, AST@}           = load_base_ast(),
      {ok, AST@}           = replace_filename(AST@, File),
      {ok, AST@}           = replace_module_name(AST@, Module),
      {ok, AST@}           = replace_start_link(AST@, Module),
      {ok, AST@}           = load_db_state(AST@, PL@),
-     {ok, AST@}           = make_interface_functions(AST@, Exports),
-     {ok, AST@}           = add_exports(AST@, Exports),
+     {ok, AST@}           = make_interface_functions(AST@, Exports, PL@),
+     {ok, AST@}           = add_exports(AST@, Exports, PL@),
      {ok, AST@}           = make_handler_clauses(AST@,Exports,PL@),
      case compile:forms(AST@, [from_ast, debug_info, return]) of
 	 {ok, Module, Binary,Errors} ->
@@ -91,11 +91,23 @@ print_exports(AST) ->
                               (_)  -> false
                            end, AST),
     Exports.
-        
-add_exports(AST,PLExports) ->  
+
+update_exports(Exports, PL) ->
+    lists:map(fun({Pr, Ar}) ->
+		      case get_return_value({'/', Pr, Ar},PL) of
+			  none ->
+			       {Pr, Ar + 1};
+			  last ->
+			      {Pr, Ar }
+		      end
+	      end, Exports).
+
+add_exports(AST, PLExports, PL) ->  
     print_exports(AST),
+    Exports = update_exports(PLExports,PL),
+    %?debugVal(Exports),
     AST1 = lists:map(fun({attribute,Line,export,[]}) ->
-                                   {attribute,Line,export,PLExports};
+                                   {attribute,Line,export,Exports};
                               (X) -> X
                            end,AST),
     print_exports(AST1),
@@ -144,10 +156,19 @@ load_db_state(AST, E0) ->
 
 
 
-make_interface_function({Function, Arity}) when is_atom(Function) and is_integer(Arity)->
+make_interface_function({Function, Arity},PL) when is_atom(Function) and is_integer(Arity)->
     Line = 31,
-    Params = make_param_list(Arity - 1, Line),
-    {function,Line,Function, Arity ,
+    RetVal = get_return_value({'/',Function,Arity},PL),
+
+    Params = case RetVal of 
+		 last -> make_param_list(Arity -1, Line);
+		 none -> make_param_list(Arity , Line)
+	     end,
+    EfArity = case RetVal of 
+		  last -> Arity;
+		  none -> Arity + 1
+	      end,
+    FN = {function,Line,Function, EfArity ,
      [{clause,Line,
        [{var,Line,'Pid'}|Params],
        [],
@@ -155,12 +176,10 @@ make_interface_function({Function, Arity}) when is_atom(Function) and is_integer
          {remote,Line,{atom,30,gen_server},{atom,30,call}},
          [{var,Line,'Pid'},
           {tuple,Line,
-
-	   
              [{atom, Line, Function}| Params]
-         
           }
-	 ]}]}]}.
+	 ]}]}]},
+    FN.
 
 
 insert_interface_inner([],_, Acc) ->
@@ -177,8 +196,8 @@ insert_interface(AST, Exports) ->
     insert_interface_inner(AST,Exports,[]).
 
 
-make_interface_functions(AST, Exports) ->
-    InterfaceFns = [make_interface_function(Fn)|| Fn <-Exports],
+make_interface_functions(AST, Exports, PL) ->
+    InterfaceFns = [make_interface_function(Fn,PL)|| Fn <-Exports],    
     insert_interface(AST, InterfaceFns).
 
 

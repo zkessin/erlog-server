@@ -1,4 +1,5 @@
 %% THIS module is not compiled directly, but it used to build a custom sever
+%% We build an AST from it and then add stuff to that AST to build the final server
 
 -module(custom_server).
 
