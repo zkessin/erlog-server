@@ -53,9 +53,10 @@ add_edge(Erlog, A, B) ->
 If you ask for a return type of `none` then it will simply return
 ok if the predicate succeed and crash if it failed.
 
-Note that as of now this does not work yet! I am working on it. 
+Currently to compile a file you the function
+`erlog_make_server:compile_file/2` pass it the path to the file and an
+atom for the erlang module name. A rebar plugin will happen sooner or later.
 
-There is also a plan for a rebar plugin
 
 If you want to have your erlog server running from a supervisor, then
 the generated module will include a function
