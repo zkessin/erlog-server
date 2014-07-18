@@ -36,8 +36,26 @@ init(_) ->
     Erlog        = erlog:new(DBState),
     {ok,  Erlog}.
 
-handle_call(_Request, _From,  Erlog) ->
-    {reply,ok, Erlog}.
+handle_prolog(Request, Erlog, last) ->
+    case Erlog({prove, Request}) of
+	{{succeed, [{'Return', Return}]}, E1} ->
+	    {reply, Return, E1};
+	{fail, E1} ->
+	    {reply, fail, E1}
+    end;
+handle_prolog(Request, Erlog, none) ->
+    case Erlog({prove, Request}) of
+	{{succeed, _}, E1} ->
+	    {reply, true, E1};
+	{fail, E1} ->
+	    {reply, false, E1}
+    end.
+
+handle_call(Request = {add_sib,_A,_B}, _From,  Erlog) ->
+    handle_prolog(Request, Erlog, none);
+handle_call(Request,_, Erlog) ->
+    io:format("Error unknown request ~p~n", [Request]),
+    {reply, error, Erlog}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.

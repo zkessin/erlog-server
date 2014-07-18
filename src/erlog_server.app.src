@@ -1,3 +1,4 @@
+% -*- Erlog -*-
 {application, erlog_server,
  [
   {description, ""},
@@ -5,8 +6,8 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+		  erlog
                  ]},
-  {mod, { erlog_server_app, []}},
   {env, []}
  ]}.

@@ -1,11 +1,11 @@
 % -*- Prolog-*-
 
 find_export(Funct) :-
-	erl_export(Funct, return, RetField),
-	asserta(export_ret_val(Funct, RetField)).
-
+	erl_export(Funct, return, _RetField).
 
 find_exports(Exports) :-
 	findall(Export, find_export(Export), Exports).
 		   
+find_return(Funct, Return) :-
+	erl_export(Funct, return, Return).
 

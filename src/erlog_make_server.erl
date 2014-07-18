@@ -155,11 +155,12 @@ make_interface_function({Function, Arity}) when is_atom(Function) and is_integer
          {remote,Line,{atom,30,gen_server},{atom,30,call}},
          [{var,Line,'Pid'},
           {tuple,Line,
-           [{atom,Line,prove},
-            {tuple, Line,
+
+	   
              [{atom, Line, Function}| Params]
-            }]
-          }]}]}]}.
+         
+          }
+	 ]}]}]}.
 
 
 insert_interface_inner([],_, Acc) ->
@@ -203,22 +204,26 @@ get_return_value(Function, PL) ->
 base_fn_clause(Predicate, ParamCount,PL ) when is_atom(Predicate) andalso is_integer(ParamCount) ->
     RetVal = get_return_value({'/',Predicate,ParamCount},PL),
     
-    ParamList = [{atom,46,Predicate}] ++ case RetVal of 
+    IParamList = [{atom,46,Predicate}] ++ case RetVal of 
 					     none -> make_param_list(ParamCount,46);
-					     last -> make_param_list(ParamCount -1, 46)++ [{tuple,47,[{atom,47,'X'}]}]
+					     last -> make_param_list(ParamCount -1, 46)
 					 end,
+    ParamList =   case RetVal of 
+		      none -> IParamList;
+		      last -> IParamList ++ [{tuple, 55, [{atom, 55,'Return'}]}]
+		  end,
     {clause,54,
      [{match,54,
-       {var,54,'Request'},
+       {var,54,'_Request'},
        {tuple,54,
-	ParamList
+	IParamList
        }},
       {var,54,'_From'},
       {var,54,'Erlog'}],
      [],
      [{call,55,
        {atom,55,handle_prolog},
-       [{var,55,'Request'},{var,55,'Erlog'},{atom,55,RetVal}]}
+       [{tuple,55,ParamList},{var,55,'Erlog'},{atom,55,RetVal}]}
      ]}.
 
 
