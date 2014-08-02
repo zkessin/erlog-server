@@ -21,10 +21,10 @@ erl_export() ->
 prop_find_exported_clauses() ->
     ?FORALL(Clauses, non_empty(list(erl_export())),
 	    begin
-		PL@             = erlog:new(),
+		{ok, PL@}       = erlog:new(),
                 PL@             = add_export_clauses(Clauses, PL@),
-		{ok,PL@}        = PL({consult, "src/erlog_make_server.pl"}),
-		{Exports,_}   = erlog_make_server:find_exports(PL@),
+		{ok,PL@}        = erlog:consult(PL@, "src/erlog_make_server.pl"),
+		{Exports,_}     = erlog_make_server:find_exports(PL@),
                 ?assertEqual(length(Clauses),length(Exports)),
 		?assert(lists:all(fun(_Export = {Fun, Arity}) ->
 					  lists:keymember({'/',Fun, Arity}, 2, Clauses)
@@ -36,14 +36,14 @@ prop_find_exported_clauses() ->
 
 add_export_clauses(Clauses, PL0) ->
     lists:foldl(fun(CL,PL) ->
-			{{succeed, _},PL1} = PL({prove,{asserta, CL}}),
+			{{succeed, _},PL1} = erlog:prove(PL,{asserta, CL}),
 			PL1
                 end, PL0, Clauses).
 
 purge(ModName) ->
-                                %% Purge any results of old runs
-                            code:purge(ModName),
-                            code:delete(ModName).
+    %% Purge any results of old runs
+    code:purge(ModName),
+    code:delete(ModName).
 prop_load_base_ast()->
     application:start(erlog),
     application:start(erlog_server),
@@ -155,7 +155,7 @@ prop_add_prolog_export_clauses() ->
                             ?debugVal(Clauses)
                         end, 
                         begin
-                            PL@             = erlog:new(),
+                            {ok,PL@ }       = erlog:new(),
                             PL@             = add_export_clauses(Clauses, PL@),
                             {Exports,_PL3}  = erlog_make_server:find_exports(PL@),
                             {ok, AST1}   = erlog_make_server:add_exports(AST,Exports,PL@),
@@ -166,19 +166,19 @@ prop_add_prolog_export_clauses() ->
                         end))).
     
 
-prwop_db_state() ->
-    
+prop_db_state() ->
     application:start(erlog),
-    PL                         = erlog:new(),
-    {ok, PL1}                  = PL({consult, "priv/po_set.pl"}),
-    {ok,  AST}                 = erlog_make_server:load_base_ast(),
-    {ok,  AST1}                = erlog_make_server:load_db_state(AST, PL1),
-    {ok,custom_server, Binary} = compile:forms(AST1,[]),
+    {ok,  PL@}                 = erlog:new(),
+    {ok,  PL@}                 = erlog:consult(PL@, "priv/po_set.pl"),
+
+    {ok,  AST@}                = erlog_make_server:load_base_ast(),
+    {ok,  AST@}                = erlog_make_server:load_db_state(AST, PL@),
+    {ok,custom_server, Binary} = compile:forms(AST@,[]),
     {module, _}                = code:load_binary(custom_server, "custom_server.erl",Binary),
     {ok, _DBState}             = custom_server:db_state(),
-    {ok, E1}                   = custom_server:init([]),
-    case E1({prove, {path, a, f, {'Path'}}}) of
-        {{succeed, [{'Path', _Path}]},_E2} ->
+    {ok, E@}                   = custom_server:init([]),
+    case erlog:prove(E@, {path, a, f, {'Path'}}) of
+        {{succeed, [{'Path', _Path}]},_} ->
             true;
         fail ->
             false
@@ -237,9 +237,7 @@ assert_functions() ->
 
 prop_compile_file() ->
     {ok,po_set} = erlog_make_server:compile_file("priv/po_set.pl", po_set),
-    
     true        = assert_functions(),
-  
     {ok, Pid}   = po_set:start_link(),
     ?assert(is_process_alive(Pid)),
     true.

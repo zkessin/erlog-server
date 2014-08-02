@@ -33,19 +33,20 @@ start_link() ->
     gen_server:start_link( ?MODULE, [], []).
 
 init(_) ->
-    {ok,DBState} = db_state(),
-    Erlog        = erlog:new(DBState),
-    {ok,  Erlog}.
+    {ok, DBState}  = db_state(),
+    {ok, Erlog1 }  = erlog:new(),
+    Erlog2         = erlog:set_db(Erlog1, DBState),
+    {ok, Erlog2}.
 
 handle_prolog(Request, Erlog, last) ->
-    case Erlog({prove, Request}) of
+    case erlog:prove(Erlog, Request) of
 	{{succeed, [{'Return', Return}]}, E1} ->
 	    {reply, Return, E1};
 	{fail, E1} ->
 	    {reply, fail, E1}
     end;
 handle_prolog(Request, Erlog, none) ->
-    case Erlog({prove, Request}) of
+    case erlog:prove(Erlog,Request) of
 	{{succeed, _}, E1} ->
 	    {reply, true, E1};
 	{fail, E1} ->
