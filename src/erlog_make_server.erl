@@ -15,31 +15,45 @@
  %% Author  : Zachary Kessin
  %% Purpose : Convert an erlog .pl file to an erlang gen_server
 
- %% To export clauses use erl_export(clause/N) 
- %% The prolog clause <<X>>/N will become the erlang function <<X>>/N, with the first 
- %% Element of the erlang function being the pid of the gen server, and the last element 
- %% of the prolog clause being the return value
- %%TODO redo from core erlang to an AST setup
 
 
 
- -compile(export_all).
- -compile({parse_transform, seqbind}).
- -include_lib("eunit/include/eunit.hrl").
- -ifdef(TEST).
 
- -compile(export_all).
- -endif.
+-compile(export_all).
+-compile({parse_transform, seqbind}).
+-include_lib("eunit/include/eunit.hrl").
+-export([erlog/2, compile/2]).
+-ifdef(TEST).
+-compile(export_all).
+-endif.
+
+erlog(Config, AppFile) ->
+    ErlogDir = filename:join([rebar_utils:get_cwd(), "erlog"]),
+    compile_files(filelib:is_dir(ErlogDir), ErlogDir).
+    
+
+compile_files(false,_) ->
+    {ok,[]};
+compile_files(true, Directory) ->
+    Files = filelib:wildcard(Directory ++"/*.pl"),
+    ModuleNames = lists:map(fun(File) ->
+		      {ok, Module, Binary}	= erlog_make_server(File, make_module_name(File)),
+		      BeamFile			= filename:join([rebar_utils:get_cwd(),"ebin", atom_to_list(make_module_name(File) ++ ".beam")]),
+		      ok			= file:write_file(BeamFile, Binary),
+		      make_module_name(File)
+		  end, Files),
+    {ok,ModuleNames}.
+
+make_module_name(File) -> list_to_atom(filename:basename(File, ".pl")).
 
 
  %% -spec(compile_buffer(atom(), iolist()) ->
  %% 	     {ok, atom()}).
 
 
- %    file:write_file("test1.ast", io_lib:format("% -*-Erlang -*- ~n~n~p~n",[AST@])),
- %   file:write_file("test2.ast", io_lib:format("% -*-Erlang -*- ~n~n~p~n",[AST@])),
 
- compile_file(File,Module) when is_atom(Module)->
+
+compile_file(File,Module) when is_atom(Module)->
     {ok,PL@}             = erlog:new(),
     {ok,PL@}             = erlog:consult(PL@,File),
     {ok, PL@}	         = erlog:consult(PL@, "src/erlog_make_server.pl"),
@@ -56,7 +70,7 @@
 	 {ok, Module, Binary,Errors} ->
 	     file:write_file("errors", io_lib:format("% -*- Erlang -*- ~n~n~p~n",[Errors])),
 	     {module, Module}     = code:load_binary(Module, File, Binary),
-	     {ok, Module};
+	     {ok, Module, Binary};
 	 E ->
 	     E
      end.
