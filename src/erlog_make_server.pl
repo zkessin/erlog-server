@@ -9,3 +9,6 @@ find_exports(Exports) :-
 find_return(Funct, Return) :-
 	erl_export(Funct, return, Return).
 
+
+find_imports(Imports) :-
+	findall(Import, import(Import), Imports).

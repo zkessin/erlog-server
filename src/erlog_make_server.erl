@@ -15,48 +15,63 @@
  %% Author  : Zachary Kessin
  %% Purpose : Convert an erlog .pl file to an erlang gen_server
 
- %% To export clauses use erl_export(clause/N) 
- %% The prolog clause <<X>>/N will become the erlang function <<X>>/N, with the first 
- %% Element of the erlang function being the pid of the gen server, and the last element 
- %% of the prolog clause being the return value
- %%TODO redo from core erlang to an AST setup
 
 
 
- -compile(export_all).
- -compile({parse_transform, seqbind}).
- -include_lib("eunit/include/eunit.hrl").
- -ifdef(TEST).
 
- -compile(export_all).
- -endif.
+-compile(export_all).
+-compile({parse_transform, seqbind}).
+-include_lib("eunit/include/eunit.hrl").
+-export([erlog/2, compile_file/2]).
+-ifdef(TEST).
+-compile(export_all).
+-endif.
+
+erlog(_Config, _AppFile) ->
+    ErlogDir = filename:join([rebar_utils:get_cwd(), "erlog"]),
+    compile_files(filelib:is_dir(ErlogDir), ErlogDir).
+    
+
+compile_files(false,_) ->
+    {ok,[]};
+compile_files(true, Directory) ->
+    Files = filelib:wildcard(Directory ++"/*.pl"),
+    ModuleNames = lists:map(fun(File) ->
+				    {ok, _Module, Binary}	= compile_file(File, make_module_name(File)),
+				    BeamFile			= filename:join([rebar_utils:get_cwd(),"ebin", atom_to_list(make_module_name(File)) ++ ".beam"]),
+				    ok			= file:write_file(BeamFile, Binary),
+				    make_module_name(File)
+			    end, Files),
+    {ok,ModuleNames}.
+
+make_module_name(File) -> list_to_atom(filename:basename(File, ".pl")).
 
 
  %% -spec(compile_buffer(atom(), iolist()) ->
  %% 	     {ok, atom()}).
 
 
- %    file:write_file("test1.ast", io_lib:format("% -*-Erlang -*- ~n~n~p~n",[AST@])),
- %   file:write_file("test2.ast", io_lib:format("% -*-Erlang -*- ~n~n~p~n",[AST@])),
 
- compile_file(File,Module) when is_atom(Module)->
-     PL@                  = erlog:new(),
-     {ok,PL@}             = PL@({consult, File}),
-     {ok, PL@}	          = PL@({consult, "src/erlog_make_server.pl"}),
-     {Exports,PL@}        = find_exports(PL@),
-     {ok, AST@}           = load_base_ast(),
-     {ok, AST@}           = replace_filename(AST@, File),
-     {ok, AST@}           = replace_module_name(AST@, Module),
-     {ok, AST@}           = replace_start_link(AST@, Module),
-     {ok, AST@}           = load_db_state(AST@, PL@),
-     {ok, AST@}           = make_interface_functions(AST@, Exports, PL@),
-     {ok, AST@}           = add_exports(AST@, Exports, PL@),
-     {ok, AST@}           = make_handler_clauses(AST@,Exports,PL@),
-     case compile:forms(AST@, [from_ast, debug_info, return]) of
+
+compile_file(File,Module) when is_atom(Module)->
+    {ok, PL@}            = erlog:new(),
+    {ok, PL@}            = erlog:consult(PL@,File),
+    {ok, PL@}	         = erlog:consult(PL@, "src/erlog_make_server.pl"),
+    {ok, PL@}            = record_defs(PL@),
+    {Exports,PL@}        = find_exports(PL@),
+    {ok, AST@}           = load_base_ast(),
+    {ok, AST@}           = replace_filename(AST@, File),
+    {ok, AST@}           = replace_module_name(AST@, Module),
+    {ok, AST@}           = replace_start_link(AST@, Module),
+    {ok, AST@}           = load_db_state(AST@, PL@),
+    {ok, AST@}           = make_interface_functions(AST@, Exports, PL@),
+    {ok, AST@}           = add_exports(AST@, Exports, PL@),
+    {ok, AST@}           = make_handler_clauses(AST@,Exports,PL@),
+    case compile:forms(AST@, [from_ast, debug_info, return]) of
 	 {ok, Module, Binary,Errors} ->
 	     file:write_file("errors", io_lib:format("% -*- Erlang -*- ~n~n~p~n",[Errors])),
 	     {module, Module}     = code:load_binary(Module, File, Binary),
-	     {ok, Module};
+	     {ok, Module, Binary};
 	 E ->
 	     E
      end.
@@ -105,7 +120,7 @@ update_exports(Exports, PL) ->
 add_exports(AST, PLExports, PL) ->  
     print_exports(AST),
     Exports = update_exports(PLExports,PL),
-    %?debugVal(Exports),
+
     AST1 = lists:map(fun({attribute,Line,export,[]}) ->
                                    {attribute,Line,export,Exports};
                               (X) -> X
@@ -136,7 +151,7 @@ make_supervisor_childspec(AST,PLModule) ->
 
 find_exports(PL) ->
     PL@ = PL,
-    case PL@({prove, {find_exports, {'Exports'}}}) of 
+    case erlog:prove(PL@, {find_exports, {'Exports'}}) of 
 	{{succeed, Res},PL@} ->
 	    Exports = [{Fun, Arity } || {'/', Fun,Arity} <- proplists:get_value('Exports', Res)],
 	    
@@ -145,9 +160,34 @@ find_exports(PL) ->
 	   {[], PL@}
     end.
 
+field_names(Fields) ->
+    [FieldName || {record_field, _, {atom, _, FieldName}} <- Fields].
+
+get_records(AST) ->
+    AST@ = lists:filter(fun({attribute, _, record, _}) ->
+				true;
+			   (_) -> false
+			end, AST),
+    AST@ = lists:map(fun({attribute, _, record, {RecordName, Fields}}) ->
+			     {record, RecordName, field_names(Fields)}
+		     end, AST@),
+
+    {ok, AST@}.
+
+record_defs(PL) ->
+    {ok,PL@}                            = erlog:consult(PL, "priv/records.pl"),
+    {{succeed, [{import, Files}]}, PL@}	= erlog:prove(PL@, {find_imports,{import}}),
+    PL@ = lists:foldl(fun(File, PL) ->
+			      Erlog@ = PL,
+			      {ok, AST}  = epp:parse_file(File,[],[]), 
+			      {ok,Records} = get_records(AST),
+			      {{succeed,_}, Erlog@} = erlog:prove(Erlog@,{records, Records}),
+			      Erlog@
+		      end, PL@, Files),
+    {ok,PL@}.
 
 load_db_state(AST, E0) ->
-    {{ok,DB},_E2} = E0(get_db),
+    DB             = erlog:get_db(E0),
     AbstractDB    = abstract(DB),
     AST1          = lists:keyreplace(db_state, 3, AST, 
                              {function,26,db_state,0,
@@ -216,7 +256,7 @@ make_param_list(ParamCount,Line) when is_integer(ParamCount)->
 
 
 get_return_value(Function, PL) ->
-    {{succeed, [{'RetVal', RetVal}]},_}= PL({prove, {find_return, Function, {'RetVal'}}}),
+    {{succeed, [{'RetVal', RetVal}]},_}= erlog:prove(PL, {find_return, Function, {'RetVal'}}),
     RetVal.
 
      
