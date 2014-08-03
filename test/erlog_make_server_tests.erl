@@ -236,17 +236,17 @@ assert_functions() ->
     true.
 
 prop_compile_file() ->
-    {ok,po_set} = erlog_make_server:compile_file("priv/po_set.pl", po_set),
-    true        = assert_functions(),
-    {ok, Pid}   = po_set:start_link(),
+    {ok,po_set,_} = erlog_make_server:compile_file("priv/po_set.pl", po_set),
+    true          = assert_functions(),
+    {ok, Pid}     = po_set:start_link(),
     ?assert(is_process_alive(Pid)),
     true.
 
 prop_execute_code() ->
-    {ok,po_set} = erlog_make_server:compile_file("priv/po_set.pl", po_set),
-    {ok, Pid}   = po_set:start_link(),
+    {ok,po_set,_} = erlog_make_server:compile_file("priv/po_set.pl", po_set),
+    {ok, Pid}     = po_set:start_link(),
     ?assert(is_process_alive(Pid)),
-    Path   = po_set:path(Pid,a,f),
+    Path          = po_set:path(Pid,a,f),
     ?assertEqual([a,b,f], Path),
     ?assertNot(po_set:sib(Pid,a,b)),
     ?assert(po_set:sib(Pid,c,b)),

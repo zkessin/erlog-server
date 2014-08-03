@@ -22,12 +22,12 @@
 -compile(export_all).
 -compile({parse_transform, seqbind}).
 -include_lib("eunit/include/eunit.hrl").
--export([erlog/2, compile/2]).
+-export([erlog/2, compile_file/2]).
 -ifdef(TEST).
 -compile(export_all).
 -endif.
 
-erlog(Config, AppFile) ->
+erlog(_Config, _AppFile) ->
     ErlogDir = filename:join([rebar_utils:get_cwd(), "erlog"]),
     compile_files(filelib:is_dir(ErlogDir), ErlogDir).
     
@@ -37,7 +37,7 @@ compile_files(false,_) ->
 compile_files(true, Directory) ->
     Files = filelib:wildcard(Directory ++"/*.pl"),
     ModuleNames = lists:map(fun(File) ->
-		      {ok, Module, Binary}	= erlog_make_server(File, make_module_name(File)),
+		      {ok, Module, Binary}	= compile_file(File, make_module_name(File)),
 		      BeamFile			= filename:join([rebar_utils:get_cwd(),"ebin", atom_to_list(make_module_name(File) ++ ".beam")]),
 		      ok			= file:write_file(BeamFile, Binary),
 		      make_module_name(File)
