@@ -37,11 +37,11 @@ compile_files(false,_) ->
 compile_files(true, Directory) ->
     Files = filelib:wildcard(Directory ++"/*.pl"),
     ModuleNames = lists:map(fun(File) ->
-		      {ok, Module, Binary}	= compile_file(File, make_module_name(File)),
-		      BeamFile			= filename:join([rebar_utils:get_cwd(),"ebin", atom_to_list(make_module_name(File) ++ ".beam")]),
-		      ok			= file:write_file(BeamFile, Binary),
-		      make_module_name(File)
-		  end, Files),
+				    {ok, _Module, Binary}	= compile_file(File, make_module_name(File)),
+				    BeamFile			= filename:join([rebar_utils:get_cwd(),"ebin", atom_to_list(make_module_name(File)) ++ ".beam"]),
+				    ok			= file:write_file(BeamFile, Binary),
+				    make_module_name(File)
+			    end, Files),
     {ok,ModuleNames}.
 
 make_module_name(File) -> list_to_atom(filename:basename(File, ".pl")).
@@ -54,8 +54,8 @@ make_module_name(File) -> list_to_atom(filename:basename(File, ".pl")).
 
 
 compile_file(File,Module) when is_atom(Module)->
-    {ok,PL@}             = erlog:new(),
-    {ok,PL@}             = erlog:consult(PL@,File),
+    {ok, PL@}            = erlog:new(),
+    {ok, PL@}            = erlog:consult(PL@,File),
     {ok, PL@}	         = erlog:consult(PL@, "src/erlog_make_server.pl"),
     {Exports,PL@}        = find_exports(PL@),
     {ok, AST@}           = load_base_ast(),
