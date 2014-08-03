@@ -184,7 +184,18 @@ prop_db_state() ->
             false
     end.
 
-prop_make_param_list() ->
+prop_record_defs()->
+    {ok,  PL@}		= erlog:new(),
+    {ok,  PL@}		= erlog:consult(PL@, "src/erlog_make_server.pl"),
+    {ok,  PL@}		= erlog:consult(PL@, "priv/po_set.pl"),
+    {ok,  PL@}          = erlog_make_server:record_defs(PL@),
+    {{succeed, _}, PL@} = erlog:prove(PL@, {clause, {est, {'W'}, {'X'}, {'Y'}}, {'Z'}}),
+    {{succeed, _}, _}   = erlog:prove(PL@, {clause, {est, {'A'}, {'W'}, {'X'}, {'Y'}}, {'Z'}}),
+    true.
+
+
+
+rop_make_param_list() ->
     ?FORALL({ParamCount},
             {
              choose(2,10)},
@@ -198,7 +209,6 @@ prop_make_param_list() ->
                           end, Vars)
 
             end).
-
 
 set_node() ->
     elements([a,b,c,d,e,f]).
@@ -218,6 +228,7 @@ edges() ->
 %     is_process_alive(Pid).
     
     
+
 
 
 assert_functions() ->

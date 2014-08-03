@@ -12,7 +12,7 @@ edge(b,f).
 erl_export(path/3,     return, last).
 erl_export(add_edge/2, return, none).
 erl_export(sib/2,      return, none).
-
+import("deps/erlog/src/erlog_int.hrl").
 add_edge(A,B) :-
 	asserta(edge(A,B)).
 

@@ -57,6 +57,7 @@ compile_file(File,Module) when is_atom(Module)->
     {ok, PL@}            = erlog:new(),
     {ok, PL@}            = erlog:consult(PL@,File),
     {ok, PL@}	         = erlog:consult(PL@, "src/erlog_make_server.pl"),
+    {ok, PL@}            = record_defs(PL@),
     {Exports,PL@}        = find_exports(PL@),
     {ok, AST@}           = load_base_ast(),
     {ok, AST@}           = replace_filename(AST@, File),
@@ -159,6 +160,31 @@ find_exports(PL) ->
 	   {[], PL@}
     end.
 
+field_names(Fields) ->
+    [FieldName || {record_field, _, {atom, _, FieldName}} <- Fields].
+
+get_records(AST) ->
+    AST@ = lists:filter(fun({attribute, _, record, _}) ->
+				true;
+			   (_) -> false
+			end, AST),
+    AST@ = lists:map(fun({attribute, _, record, {RecordName, Fields}}) ->
+			     {record, RecordName, field_names(Fields)}
+		     end, AST@),
+
+    {ok, AST@}.
+
+record_defs(PL) ->
+    {ok,PL@}                            = erlog:consult(PL, "priv/records.pl"),
+    {{succeed, [{import, Files}]}, PL@}	= erlog:prove(PL@, {find_imports,{import}}),
+    PL@ = lists:foldl(fun(File, PL) ->
+			      Erlog@ = PL,
+			      {ok, AST}  = epp:parse_file(File,[],[]), 
+			      {ok,Records} = get_records(AST),
+			      {{succeed,_}, Erlog@} = erlog:prove(Erlog@,{records, Records}),
+			      Erlog@
+		      end, PL@, Files),
+    {ok,PL@}.
 
 load_db_state(AST, E0) ->
     DB             = erlog:get_db(E0),
